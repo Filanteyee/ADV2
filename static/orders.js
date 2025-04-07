@@ -1,58 +1,65 @@
+// Слушаем клик на кнопке "Показать все заказы"
 document.getElementById("loadOrdersBtn").addEventListener("click", loadOrders);
 
 function loadOrders() {
-    fetch("/orders")
+    // Получаем контейнер для заказов
+    const ordersDiv = document.getElementById("ordersContainer");
+
+    // Очищаем контейнер перед загрузкой новых данных
+    ordersDiv.innerHTML = "";
+
+    // Загружаем заказы с сервера
+    fetch('/orders')
         .then(res => res.json())
         .then(orders => {
-            const container = document.getElementById("ordersContainer");
-            container.innerHTML = "";
+            if (orders.length === 0) {
+                ordersDiv.innerHTML = "<p>Нет заказов для отображения.</p>";
+                return;
+            }
 
+            // Добавляем каждый заказ в контейнер
             orders.forEach(order => {
-                const card = document.createElement("div");
-                card.className = "order-card";
-                card.addEventListener("click", () => showOrderDetails(order.id));
+                const orderElement = document.createElement("div");
+                orderElement.classList.add("order-card");
 
-                card.innerHTML = `
-          <h3>Заказ #${order.id}</h3>
-          <p>Статус: <strong>${order.status}</strong></p>
+                orderElement.innerHTML = `
+          <h2>Заказ #${order.id}</h2>
+          <p>Статус: ${order.status}</p>
           <div class="order-items">
             ${order.items.map(item => `
               <div class="order-item">
-                <img src="${item.image_url}" width="100" /><br>
-                ${item.product_name}<br>
-                Кол-во: ${item.quantity}
+                <img src="${item.image_url}" alt="${item.product_name}" width="100" height="100">
+                <p>${item.product_name}</p>
+                <p>Цена: ${item.price}</p>
               </div>
-            `).join("")}
+            `).join('')}
           </div>
           <div class="order-actions">
-            <button onclick="event.stopPropagation(); changeStatus('${order.id}')">Изменить статус</button>
-            <button class="cancel-btn" onclick="event.stopPropagation(); cancelOrder('${order.id}')">Отменить заказ</button>
+            <button class="cancel-btn" onclick="cancelOrder('${order.id}')">Отменить заказ</button>
           </div>
         `;
-                container.appendChild(card);
+
+                ordersDiv.appendChild(orderElement);
             });
+        })
+        .catch(error => {
+            ordersDiv.innerHTML = "<p>Ошибка загрузки заказов. Попробуйте позже.</p>";
         });
 }
 
-function changeStatus(orderId) {
-    const newStatus = prompt("Введите новый статус (pending, completed, cancelled):");
-    if (!newStatus) return;
-
-    fetch(`/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
-    }).then(() => loadOrders());
-}
-
-function cancelOrder(orderId) {
+function cancelOrder(id) {
     if (!confirm("Вы уверены, что хотите отменить заказ?")) return;
 
-    fetch(`/orders/${orderId}`, {
-        method: "DELETE"
-    }).then(() => loadOrders());
-}
-
-function showOrderDetails(orderId) {
-    window.location.href = `/orders/${orderId}/view`;
+    fetch(`/orders/${id}/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+    })
+        .then(res => {
+            if (res.ok) {
+                alert("Заказ отменён!");
+                loadOrders(); // Перезагружаем список заказов
+            } else {
+                alert("Ошибка при отмене заказа.");
+            }
+        });
 }

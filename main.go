@@ -1,4 +1,3 @@
-// main.go
 package main
 
 import (
@@ -35,11 +34,15 @@ func main() {
 	uc := usecase.NewOrderUsecase(repo)
 	h := handler.NewOrderHandler(uc)
 
+	// Роуты
 	r.POST("/orders", h.CreateOrder)
 	r.GET("/orders", h.GetOrders)
 	r.GET("/orders/:id", h.GetOrderByID)
 	r.PATCH("/orders/:id", h.UpdateOrderStatus)
 	r.DELETE("/orders/:id", h.DeleteOrder)
+
+	// Новый роут для отмены заказа
+	r.PATCH("/orders/:id/cancel", h.CancelOrder) // Изменение статуса на "cancelled"
 
 	r.Run(":8080")
 }

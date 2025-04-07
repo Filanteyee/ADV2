@@ -1,11 +1,10 @@
 package handler
 
 import (
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"order_service/repository"
 	"order_service/usecase"
-
-	"github.com/gin-gonic/gin"
 )
 
 type OrderHandler struct {
@@ -14,6 +13,25 @@ type OrderHandler struct {
 
 func NewOrderHandler(uc *usecase.OrderUsecase) *OrderHandler {
 	return &OrderHandler{usecase: uc}
+}
+
+func (h *OrderHandler) CreateOrder(c *gin.Context) {
+	var req repository.Order
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат запроса"})
+		return
+	}
+
+	id, err := h.usecase.CreateOrder(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка при создании заказа"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Order created",
+		"order_id": id,
+	})
 }
 
 func (h *OrderHandler) GetOrders(c *gin.Context) {
@@ -60,21 +78,15 @@ func (h *OrderHandler) DeleteOrder(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (h *OrderHandler) CreateOrder(c *gin.Context) {
-	var req repository.Order
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат запроса"})
+// Новый обработчик для отмены заказа
+func (h *OrderHandler) CancelOrder(c *gin.Context) {
+	id := c.Param("id")
+
+	// Меняем статус на "cancelled"
+	if err := h.usecase.UpdateStatus(id, "cancelled"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка при отмене заказа"})
 		return
 	}
 
-	id, err := h.usecase.CreateOrder(&req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка при создании заказа"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Order created",
-		"order_id": id,
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "Order cancelled"})
 }
